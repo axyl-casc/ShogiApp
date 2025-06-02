@@ -1,110 +1,103 @@
 import Module from 'ffish-es6';
 
-let ffish = null;
-
 Module({
-  locateFile: (path) => {
-    // Ensure the .wasm is loaded from /ShogiApp/ffish.wasm
-    if (path.endsWith('.wasm')) {
-      return new URL('/ShogiApp/ffish.wasm', window.location.origin).toString();
-    }
-    return path;
-  }
-}).then((loadedModule) => {
-  ffish = loadedModule;
-  console.log("✅ ffish module loaded");
-  console.log("Available variants:", ffish.variants?.() || "(null)");
+  locateFile: (p) =>
+    p.endsWith('.wasm') ? (import.meta.env.BASE_URL || '/') + 'ffish.wasm' : p
+}).then((ffish) => {
+  const playerEl = document.getElementById('player');
+  const sfenEl   = document.getElementById('sfen');
+  const infoEl   = document.getElementById('info');
+  const aiBtn    = document.getElementById('aiMove');
 
-  const player = document.getElementById("player");
-  const sfenOutput = document.getElementById("sfen");
-  const btn = document.getElementById("aiMove");
-  const info = document.getElementById("info");
-
-  if (!player || !sfenOutput || !btn || !info) {
-    console.error("❌ DOM elements not found");
+  if (!(playerEl && sfenEl && infoEl && aiBtn)) {
+    console.error('Missing one of #player, #sfen, #info or #aiMove in DOM');
     return;
   }
 
-  // Initial SFEN: standard starting position, Black to move
-  const initialSfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+  // Starting SFEN
+  const START_SFEN =
+    'lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1';
 
-  // Randomly assign human to Black (sente) or White (gote)
-  const playerIsBlack = Math.random() < 0.5;
-  const playerSide = playerIsBlack ? "b" : "w";
-  const aiSide = playerIsBlack ? "w" : "b";
-  console.log(`🎲 Player is ${playerIsBlack ? "Black (sente)" : "White (gote)"}`);
-  console.log(`🤖 AI is ${aiSide === "b" ? "Black" : "White"}`);
+  // Initialize the visual board
+  playerEl.mode = 'edit';
+  playerEl.setAttribute('sfen', START_SFEN);
+  sfenEl.textContent = START_SFEN;
+  infoEl.textContent = 'Make a move on the board, then press “AI Move.”';
 
-  // Configure <shogi-player>:
-  player.mode = "play";
-  player.setAttribute("editable", "true"); 
-  player.setAttribute("sfen", initialSfen);
+  // Decide sides randomly (just for display)—but AI code
+  // below doesn’t actually care which side is “AI” vs “human.”
+  const humanIsBlack = Math.random() < 0.5;
+  const HUMAN = humanIsBlack ? 'b' : 'w';
+  const CPU   = humanIsBlack ? 'w' : 'b';
 
-  // Show which side you are and which side the AI is:
-  info.innerText = `You are ${playerIsBlack ? "Black (sente)" : "White (gote)"}, AI is ${aiSide === "b" ? "Black" : "White"}`;
+  infoEl.textContent += ` You are ${HUMAN === 'b' ? 'Black' : 'White'}.`;
 
-  // Whenever the SFEN changes (either your move or the AI’s move),
-  // toggle editing and, if it’s AI’s turn, trigger AI move:
-  player.addEventListener("update", (e) => {
-    const newSfen = e.detail.sfen;
-    sfenOutput.innerText = newSfen;
-    console.log("📥 SFEN updated:", newSfen);
+  // Whenever <shogi-player> fires an update (i.e. you’ve just made a move,
+  // or the AI just pushed a move), we:
+  //  1) normalize/fix the SFEN (strip any “[info]…” tags),
+  //  2) update the <pre> on screen,
+  //  3) read “who is to move next” and set mode=“view” (if AI to move) or “edit” (if human).
+  playerEl.addEventListener('update', (e) => {
+    // 1) Strip engine‐tags out of SFEN
+    const cleanSFEN = e.detail.sfen.replace(/\[.*?]/g, '').trim();
+    // 2) Put it back on <shogi-player> and in <pre>
+    playerEl.setAttribute('sfen', cleanSFEN);
+    sfenEl.textContent = cleanSFEN;
 
-    // Determine whose turn it is from the SFEN: look for " w " or " b "
-    if (newSfen.includes(` ${aiSide} `)) {
-      // Disable user editing while AI thinks:
-      player.setAttribute("editable", "false");
-
-      // Give a tiny timeout so the board visually updates first,
-      // then let the AI calculate its move:
-      setTimeout(() => playAIMove(newSfen), 200);
+    // 3) Whose turn is next? (the “side” is the second token, 'b' or 'w')
+    const sideToMove = cleanSFEN.split(' ')[1];
+    if (sideToMove === CPU) {
+      // Lock the board so you can’t move until AI replies
+      playerEl.mode = 'view';
     } else {
-      // It's your turn → enable editing:
-      player.setAttribute("editable", "true");
+      // Your turn again
+      playerEl.mode = 'edit';
     }
   });
 
-  // For manual testing, you can force an AI move:
-  btn.addEventListener("click", () => {
-    playAIMove(player.getAttribute("sfen"));
+  // “AI Move” button callback:
+  //   • Read current SFEN from the <shogi-player> attribute
+  //   • Build a fresh engine board from it
+  //   • Push exactly one legal move
+  //   • Update <shogi-player>’s SFEN (this will trigger the above update handler again,
+  //     which sets mode correctly for your next turn)
+  aiBtn.addEventListener('click', () => {
+    // 1) Grab current SFEN
+    const currentSFEN = playerEl.getAttribute('sfen');
+    // 2) Build a fresh engine board
+    const board = new ffish.Board('shogi', currentSFEN);
+    // 3) Pick a random legal move
+    const moves = board.legalMoves().split(' ');
+    if (!moves || moves.length === 0) {
+      infoEl.textContent = 'Game Over!';
+      return;
+    }
+    const randomMove = moves[Math.floor(Math.random() * moves.length)];
+    board.push(randomMove);
+    // 4) Extract and clean the new SFEN
+    const nextSFEN = board.fen().replace(/\[.*?]/g, '').trim();
+    // 5) Drop it onto <shogi-player>; that automatically fires “update”
+    playerEl.setAttribute('sfen', nextSFEN);
+    // We do NOT set mode here—let the update handler above do it.
   });
 
-  // Core AI‐move function:
-  function playAIMove(sfen) {
-    console.log("🎯 AI thinking on SFEN:", sfen);
-
-    try {
-      // Create a new ffish board from the current SFEN:
-      const board = new ffish.Board("shogi", sfen);
-
-      // List all legal moves:
-      const legal = board.legalMoves().split(" ");
-      console.log("🔍 Legal moves for AI:", legal);
-
-      if (legal.length > 0) {
-        // For now, AI just picks the first legal move:
-        board.push(legal[0]);
-
-        // Clean up any trailing "[...]" that ffish might inject:
-        let newFen = board.fen().replace(/\[.*?\]/g, "").trim();
-        console.log("🤖 AI move played. New SFEN:", newFen);
-
-        // Update the board by setting the SFEN attribute:
-        player.setAttribute("sfen", newFen);
-      } else {
-        console.warn("⚠️ No legal moves available for AI");
+  // If AI is Black, let it play the very first move from START_SFEN
+  if (CPU === 'b') {
+    setTimeout(() => {
+      const board = new ffish.Board('shogi', START_SFEN);
+      const moves = board.legalMoves().split(' ');
+      if (moves && moves.length) {
+        const randomMove = moves[Math.floor(Math.random() * moves.length)];
+        board.push(randomMove);
+        const nextSFEN = board.fen().replace(/\[.*?]/g, '').trim();
+        playerEl.setAttribute('sfen', nextSFEN);
+        // “update” handler will lock or unlock accordingly
       }
-
-      board.delete();
-    } catch (err) {
-      console.error("❌ Error during AI move:", err);
-    }
+    }, 100);
   }
-
-  // If the AI’s side is Black, it starts immediately:
-  if (!playerIsBlack) {
-    playAIMove(initialSfen);
-  }
-}).catch((err) => {
-  console.error("❌ Failed to load ffish module:", err);
+})
+.catch((error) => {
+  console.error('Failed to load WASM module:', error);
+  const infoEl = document.getElementById('info');
+  if (infoEl) infoEl.textContent = 'Failed to load game engine';
 });

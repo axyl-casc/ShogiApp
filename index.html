@@ -1,34 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Shogi App</title>
+  <meta charset="utf-8" />
+  <title>Shogi + Fairy-Stockfish Demo</title>
+  <!-- Shogi board web-component -->
+  <script type="module" src="src/shogi-player.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    #info { margin-bottom: 0.5rem; font-weight: bold; }
-    #sfen { background: #f0f0f0; padding: 0.5rem; white-space: pre; }
-    #aiMove { margin-top: 0.5rem; }
+    body { font-family: system-ui, sans-serif; padding: 1rem; }
+    shogi-player { width: 400px; height: 480px; display: block; }
+    button { margin-top: 0.5rem; padding: 0.4rem 1rem; }
+    pre { background:#f4f4f4; padding:0.5rem; }
   </style>
 </head>
+
 <body>
-  <h1>Shogi in the Browser</h1>
-  <div id="info">Loading...</div>
+  <h1>Play Shogi against Fairy-Stockfish (in your browser)</h1>
 
-  <!-- The board: -->
-  <shogi-player id="player" mode="play"></shogi-player>
+  <!-- interactive board -->
+  <shogi-player id="player"></shogi-player>
 
-  <!-- SFEN display: -->
-  <pre id="sfen">SFEN will appear here</pre>
+  <!-- “AI Move” button -->
+  <button id="aiMove">AI Move</button>
 
-  <!-- Optional “Force AI Move” button (for testing): -->
-  <button id="aiMove">Force AI Move</button>
+  <pre id="info"></pre>
+  <pre id="sfen"></pre>
 
-  <!-- Load the shogi-player web component (prebuilt bundle, version 0.1.3): -->
-  <script type="module"
-    src="https://unpkg.com/shogi-player-webcomponents@0.1.3/dist/shogi-player.js?module">
-  </script>
-
-  <!-- Load our main logic: -->
+  <!-- game logic -->
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
