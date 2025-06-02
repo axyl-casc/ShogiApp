@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shogi App</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    #info { margin-bottom: 0.5rem; font-weight: bold; }
+    #sfen { background: #f0f0f0; padding: 0.5rem; white-space: pre; }
+    #aiMove { margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Shogi in the Browser</h1>
+  <div id="info">Loading...</div>
+
+  <!-- The board: -->
+  <shogi-player id="player" mode="play"></shogi-player>
+
+  <!-- SFEN display: -->
+  <pre id="sfen">SFEN will appear here</pre>
+
+  <!-- Optional “Force AI Move” button (for testing): -->
+  <button id="aiMove">Force AI Move</button>
+
+  <!-- Load the shogi-player web component (prebuilt bundle, version 0.1.3): -->
+  <script type="module"
+    src="https://unpkg.com/shogi-player-webcomponents@0.1.3/dist/shogi-player.js?module">
+  </script>
+
+  <!-- Load our main logic: -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
