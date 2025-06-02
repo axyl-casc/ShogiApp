@@ -1,0 +1,31 @@
+{
+  "name": "shogiapp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/axyl-casc/ShogiApp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/axyl-casc/ShogiApp/issues"
+  },
+  "homepage": "https://github.com/axyl-casc/ShogiApp#readme",
+  "dependencies": {
+    "ffish-es6": "^0.7.8",
+    "shogi-player-webcomponents": "^0.1.3",
+    "vite": "^6.3.5"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
+}
